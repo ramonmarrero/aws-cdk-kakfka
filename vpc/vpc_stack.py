@@ -1,24 +1,34 @@
+# import modules
 from aws_cdk import (
-    core as cdk
-    # aws_sqs as sqs,
+    core,
+    aws_ec2 as ec2,
 )
+from constants import constants
 
-# For consistency with other languages, `cdk` is the preferred import name for
-# the CDK's core module.  The following line also imports it as `core` for use
-# with examples from the CDK Developer's Guide, which are in the process of
-# being updated to use `cdk`.  You may delete this import if you don't need it.
-from aws_cdk import core
+class VpcStack(core.Stack):
+    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
 
+        # create the vpc
+        self.kafka_vpc = ec2.Vpc(self, "kafka_vpc", max_azs=3,)
+        core.Tag.add(self.kafka_vpc, "project", constants["PROJECT_TAG"])
+        # add s3 endpoint
+        self.kafka_vpc.add_gateway_endpoint(
+            "e6ad3311-f566-426e-8291-6937101db6a1",
+            service=ec2.GatewayVpcEndpointAwsService.S3,
+        )
 
-class AwsCdkKafkaStack(cdk.Stack):
+    # properties to share with other stacks ...
+    @property
+    def get_vpc(self):
+        return self.kafka_vpc
 
-    def __init__(self, scope: cdk.Construct, construct_id: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+    @property
+    def get_vpc_public_subnet_ids(self):
+        return self.kafka_vpc.select_subnets(subnet_type=ec2.SubnetType.PUBLIC).subnet_ids
 
-        # The code that defines your stack goes here
-
-        # example resource
-        # queue = sqs.Queue(
-        #     self, "AwsCdkKafkaQueue",
-        #     visibility_timeout=cdk.Duration.seconds(300),
-        # )
+    @property
+    def get_vpc_private_subnet_ids(self):
+        return self.kafka_vpc.select_subnets(
+            subnet_type=ec2.SubnetType.PRIVATE
+        ).subnet_ids
